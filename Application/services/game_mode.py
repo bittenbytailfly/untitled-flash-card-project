@@ -10,6 +10,7 @@ class GameMode:
     def __init__(self, hardware: Hardware, game: Game, is_flipped: bool):
         # Wire up hardware
         self.hardware = hardware
+        self.is_busy = True
 
         self.image_bytes = france.image_bytes[6:]
         self.cards = game.cards
@@ -31,20 +32,41 @@ class GameMode:
 
     def advance(self):
         self.current_card_index += 1
-        uasyncio.create_task(self.show_current_card())
+        if self.current_card_index >= self.card_count:
+            uasyncio.create_task(self.output_results())
+        else:
+            uasyncio.create_task(self.show_current_card())
 
     def correct_answer_registered(self):
+        if self.is_busy:
+            return
+        
         self.correct_answers += 1
         self.advance()
 
     def incorrect_answer_registered(self):
+        if self.is_busy:
+            return
+        
         self.advance()
 
+    async def output_results(self):
+        self.is_busy = True
+        try:
+            await self.hardware.show_flash_cards(self.image_bytes, f"{self.correct_answers}/{self.card_count}", "")
+            await self.hardware.sleep()
+        finally:
+            self.is_busy = False
+
     async def show_current_card(self):
-        card = self.cards[self.current_card_index]
-        front = card.back if self.is_flipped else card.front
-        back = card.front if self.is_flipped else card.back
-        await self.hardware.show_flash_cards(self.image_bytes, front, back)
+        self.is_busy = True
+        try:
+            card = self.cards[self.current_card_index]
+            front = card.back if self.is_flipped else card.front
+            back = card.front if self.is_flipped else card.back
+            await self.hardware.show_flash_cards(self.image_bytes, front, back)
+        finally:
+            self.is_busy = False
 
     async def start_game(self):
         # Shuffle the cards
@@ -52,7 +74,8 @@ class GameMode:
 
         # We need to "prime" the ePaper displays
         await self.hardware.prime_displays(self.image_bytes)
-
         await self.show_current_card()
+
+        self.is_busy = False
 
 

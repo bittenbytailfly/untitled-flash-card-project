@@ -14,7 +14,7 @@ from gui.widgets.textbox import Textbox
 class Hardware:
     def __init__(self):
         # Initialize Displays
-        self.__spi__ = SPI(1, baudrate=4000_000, sck=Pin(10), mosi=Pin(11))
+        self.__spi__ = SPI(1, baudrate=2000_000, sck=Pin(10), mosi=Pin(11))
         self.__primary_display_pins__ = DisplayPins(cs=9, dc=8, rst=12, busy=13)
         self.__secondary_display_pins__ = DisplayPins(cs=17, dc=18, rst=19, busy=20)
         self.__primary_display__ = epaper.EPD(self.__spi__, self.__primary_display_pins__.cs, self.__primary_display_pins__.dc, self.__primary_display_pins__.rst, self.__primary_display_pins__.busy, landscape=True, asyn=True)
@@ -24,7 +24,7 @@ class Hardware:
         self.on_green_button_press = Event()
 
         # Initialize Buttons
-        self._green_button = Button(28)
+        self._green_button = Button(28, bounce_time=0.05)
         self._green_button.when_activated = self._green_button_handler
     
     def __paint_background_image__(self, image_bytes):
@@ -56,7 +56,6 @@ class Hardware:
 
         await self.__update_displays__()
         
-
     async def prime_displays(self, image_bytes: bytearray):
         """Outputs the image across both screens for priming purposes, readying it for partial display"""
         # Load the image into a frame buffer
@@ -72,6 +71,10 @@ class Hardware:
         self.__secondary_display__._full = False
         
         await self.__update_displays__()
+
+    async def sleep(self):
+        self.__primary_display__.sleep()
+        self.__secondary_display__.sleep()
 
     def _green_button_handler(self):
         self.on_green_button_press()
