@@ -20,10 +20,14 @@ class Hardware:
 
         # Define Events
         self.on_green_button_press = Event()
+        self.on_red_button_press = Event()
 
         # Initialize Buttons
         self._green_button = Button(28, bounce_time=0.05)
         self._green_button.when_activated = self._green_button_handler
+
+        self._red_button = Button(5, bounce_time=0.05)
+        self._red_button.when_activated = self._red_button_handler
     
     async def _update_displays(self):
         self.primary_display.show()
@@ -40,3 +44,6 @@ class Hardware:
 
     def _green_button_handler(self):
         self.on_green_button_press()
+
+    def _red_button_handler(self):
+        self.on_red_button_press()

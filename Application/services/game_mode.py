@@ -33,7 +33,8 @@ class GameMode:
         ]
         self.max_text_width = 230
 
-        hardware.on_green_button_press += self._correct_answer_registered
+        self.hardware.on_green_button_press += self._correct_answer_registered
+        self.hardware.on_red_button_press += self._incorrect_answer_registered
     
     def _shuffle_cards(self):
         """Shuffles a list in-place using the Fisher-Yates algorithm."""
@@ -108,11 +109,6 @@ class GameMode:
         self._show_flash_card(self.hardware.secondary_display, back)
 
         await self.hardware._update_displays()
-    
-    async def _show_results(self, image_bytes, correct_answers, total_cards):
-        self._paint_background_image(image_bytes)
-        self._show_flash_card(self.hardware.primary_display, "Finished")
-        self._show_flash_card(self.hardware.secondary_display, f"{correct_answers}/{total_cards}")
         
     async def _prime_displays(self, image_bytes: bytearray):
         """Outputs the image across both screens for priming purposes, readying it for partial display"""
@@ -133,7 +129,16 @@ class GameMode:
     async def _output_results(self):
         self.is_busy = True
         try:
-            await self._show_flash_cards(self.image_bytes, f"{self.correct_answers}/{self.card_count}", "")
+            # Calculate the score percentage
+            if self.card_count > 0:
+                percentage = (self.correct_answers / self.card_count) * 100
+            else:
+                percentage = 0
+                
+            # Get the encouraging message
+            message = self._get_encouragement_message(percentage)
+
+            await self._show_flash_cards(self.image_bytes, message, f"{self.correct_answers}/{self.card_count}")
             await self.hardware.sleep()
         finally:
             self.is_busy = False
@@ -147,6 +152,33 @@ class GameMode:
             await self._show_flash_cards(self.image_bytes, front, back)
         finally:
             self.is_busy = False
+
+    def _get_encouragement_message(self, percentage: float) -> str:
+        """Returns a randomized string based on the final score percentage."""
+        
+        if percentage == 100:
+            messages = ["Nailed It!", "Perfect Score!", "Incredible!"]
+            return urandom.choice(messages)
+        
+        elif percentage >= 90:
+            messages = ["Excellent!", "Awesome Job!", "Wow!"]
+            return urandom.choice(messages)
+            
+        elif percentage >= 70:
+            messages = ["Great Work!", "Very Impressive!", "Well Done!"]
+            return urandom.choice(messages)
+            
+        elif percentage >= 50:
+            messages = ["Solid Effort!", "Nice One!", "Good Job!"]
+            return urandom.choice(messages)
+            
+        elif percentage > 0:
+            messages = ["Keep practicing!", "You've got this!", "Don't give up!"]
+            return urandom.choice(messages)
+            
+        else:  # This covers the 0% case
+            messages = ["Better luck next time!", "A fresh start!", "Let's try again!"]
+            return urandom.choice(messages)
 
     async def start_game(self):
         # Shuffle the cards
