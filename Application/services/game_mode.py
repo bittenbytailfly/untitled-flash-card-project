@@ -6,7 +6,7 @@ import uasyncio
 from images import france
 import framebuf
 import gui.core.writer as writer
-from gui.fonts import courier20 
+from fonts import indie_flower50, indie_flower45, indie_flower40, indie_flower35, indie_flower30, indie_flower25, indie_flower20
 from gui.widgets.textbox import Textbox
 
 class GameMode:
@@ -21,6 +21,17 @@ class GameMode:
         self.card_count = len(self.cards)
         self.correct_answers = 0
         self.is_flipped = is_flipped
+
+        self.fonts_by_size = [
+            indie_flower50,
+            indie_flower45,
+            indie_flower40,
+            indie_flower35,
+            indie_flower30,
+            indie_flower25,
+            indie_flower20,
+        ]
+        self.max_text_width = 230
 
         hardware.on_green_button_press += self._correct_answer_registered
     
@@ -59,12 +70,37 @@ class GameMode:
         self.hardware.secondary_display.blit(img_fb, 0, 0)
 
     def _show_flash_card(self, display, text):
-        wri = writer.Writer(display, courier20)
-        primary_text_width = wri.stringlen(text)
-        start_x = (display.width - primary_text_width) // 2
-        start_y = (display.height - courier20.height()) // 2
-        wri.set_textpos(display, start_y, start_x)
-        wri.printstring(text)
+        """
+        Finds the largest possible font that fits within the max width
+        and draws the text centered on the display.
+        """
+        selected_font = None # This will hold the font we choose
+
+        # 1. Loop through fonts from largest to smallest
+        for font in self.fonts_by_size:
+            # Create a temporary writer just for measuring
+            temp_wri = writer.Writer(display, font)
+            text_width = temp_wri.stringlen(text)
+
+            # 2. Check if the text fits
+            if text_width <= self.max_text_width:
+                selected_font = font
+                break # Found a font that fits, so we stop the loop
+
+        # 3. If no font fits (very long text), default to the smallest one
+        if selected_font is None:
+            selected_font = self.fonts_by_size[-1] # The last font in the list
+
+        # 4. Now, create the final writer and draw the text
+        final_wri = writer.Writer(display, selected_font)
+        
+        # Recalculate width and position for final centering
+        final_width = final_wri.stringlen(text)
+        start_x = (display.width - final_width) // 2
+        start_y = (display.height - selected_font.height()) // 2
+        writer.Writer.set_textpos(display, start_y, start_x)
+        
+        final_wri.printstring(text)
 
     async def _show_flash_cards(self, image_bytes, front, back):
         self._paint_background_image(image_bytes)
